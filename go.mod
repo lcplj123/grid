@@ -1,4 +1,4 @@
-module github.com/lcplj123/soap
+module soap
 
 
 go 1.12

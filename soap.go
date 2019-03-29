@@ -1,5 +1,5 @@
 // Package soap provides a SOAP HTTP client.
-package github.com/lcplj123/soap
+package soap
 
 import (
 	"bytes"
