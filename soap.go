@@ -54,6 +54,25 @@ type Client struct {
 	Post                   func(*http.Response) // Optional hook to snoop inbound responses
 }
 
+/*
+* Client is a http client.
+ */
+type BusClient struct {
+	BaseURL        string               //URL of the server
+	MethodName     string               //method name to call
+	Config         *http.Client         //HTTP client
+	ContentType    string               //Content-Type (default application/json)
+	UserAgent      string               //proxy for client request(default Gin-Grid 1.0.1)
+	Host           string               //host
+	Accept         string               //default:
+	AcceptEncoding string               //defaut:
+	AcceptLanguage string               //default:
+	CacheControl   string               //cache
+	Keepalive      bool                 //default true
+	Pre            func(*http.Request)  //hook to modify outbound requests
+	Post           func(*http.Response) //hook to snoop inbound responses
+}
+
 // XMLTyper is an abstract interface for types that can set an XML type.
 type XMLTyper interface {
 	SetXMLType()
@@ -205,6 +224,57 @@ func (c *Client) RoundTripWithAction(soapAction string, in, out Message) error {
 		}
 	}
 	return doRoundTrip(c, headerFunc, in, out)
+}
+
+func (c *BusClient) RoundTripWithBus(method string, in []byte) ([]byte, error) {
+	headerFunc := func(r *http.Request) { //用来设置请求头的回调
+		ct := c.ContentType
+		if ct == "" {
+			ct = "application/json"
+		}
+		r.Header.Set("Content-Type", ct)
+
+	}
+	return doRoundTripWithBus(c, headerFunc, in)
+}
+
+func doRoundTripWithBus(c *BusClient, setHeaders func(*http.Request), in []byte) ([]byte, error) {
+
+	//v, vv := xml.MarshalIndent(req, "", "         ")
+	//fmt.Println("-------------------", string(v), vv)
+	cli := c.Config
+	if cli == nil {
+		cli = http.DefaultClient
+	}
+	r, err := http.NewRequest("POST", c.BaseURL+c.MethodName, bytes.NewBuffer(in))
+	if err != nil {
+		return nil, err
+	}
+	setHeaders(r)
+	if c.Pre != nil {
+		c.Pre(r)
+	}
+	resp, err := cli.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if c.Post != nil {
+		c.Post(resp)
+	}
+	if resp.StatusCode != http.StatusOK {
+		// read only the first MiB of the body in error case
+		limReader := io.LimitReader(resp.Body, 1024*1024)
+		body, _ := ioutil.ReadAll(limReader)
+		return nil, &HTTPError{
+			StatusCode: resp.StatusCode,
+			Status:     resp.Status,
+			Msg:        string(body),
+		}
+	}
+
+	return ioutil.ReadAll(resp.Body)
+
 }
 
 // RoundTripSoap12 implements the RoundTripper interface for SOAP 1.2.
