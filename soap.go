@@ -235,18 +235,17 @@ func (c *BusClient) RoundTripWithBus(method string, in []byte) ([]byte, error) {
 		r.Header.Set("Content-Type", ct)
 
 	}
-	return doRoundTripWithBus(c, headerFunc, in)
+	return doRoundTripWithBus(c, headerFunc, in, method)
 }
 
-func doRoundTripWithBus(c *BusClient, setHeaders func(*http.Request), in []byte) ([]byte, error) {
+func doRoundTripWithBus(c *BusClient, setHeaders func(*http.Request), in []byte, method string) ([]byte, error) {
 
-	//v, vv := xml.MarshalIndent(req, "", "         ")
-	//fmt.Println("-------------------", string(v), vv)
+	//fmt.Println("-------------------", method, string(in))
 	cli := c.Config
 	if cli == nil {
 		cli = http.DefaultClient
 	}
-	r, err := http.NewRequest("POST", c.BaseURL+c.MethodName, bytes.NewBuffer(in))
+	r, err := http.NewRequest("POST", c.BaseURL+method, bytes.NewBuffer(in))
 	if err != nil {
 		return nil, err
 	}
